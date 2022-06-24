@@ -102,7 +102,11 @@
 
 /* Put one of these structures in i2c_board_info platform_data */
 
-#define ADP5588_KEYMAPSIZE	80
+/*
+ * 128 so it fits maxtrix-keypad maximum number of keys when the full
+ * 10cols * 8rows are used.
+ */
+#define ADP5588_KEYMAPSIZE	128
 
 #define GPI_PIN_ROW0 97
 #define GPI_PIN_ROW1 98

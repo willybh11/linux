@@ -9,6 +9,7 @@
  */
 
 #include <linux/module.h>
+#include <linux/input/matrix_keypad.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
 #include <linux/workqueue.h>
@@ -42,6 +43,11 @@ struct adp5588_kpad {
 	struct input_dev *input;
 	struct delayed_work work;
 	unsigned long delay;
+	u32 row_shift;
+	u32 rows;
+	u32 cols;
+	u32 unlock_key1;
+	u32 unlock_key2;
 	unsigned short keycode[ADP5588_KEYMAPSIZE];
 #ifdef CONFIG_GPIOLIB
 	unsigned char gpiomap[ADP5588_MAXGPIO];
@@ -130,7 +136,7 @@ static int adp5588_gpio_direction_input(struct gpio_chip *chip, unsigned off)
 static int adp5588_gpio_direction_output(struct gpio_chip *chip,
 					 unsigned off, int val)
 {
-	struct adp5588_kpad *kpad = gpiochip_get_data(chip);
+	struct adp5588_kpad *kpad = gpiochip_get_data(chip);			int row_shift = get_count_order(kpad->cols);
 	unsigned int bank = ADP5588_BANK(kpad->gpiomap[off]);
 	unsigned int bit = ADP5588_BIT(kpad->gpiomap[off]);
 	int ret;
@@ -385,12 +391,17 @@ static void adp5588_report_events(struct adp5588_kpad *kpad, int ev_cnt)
 		int key_val = key & KEY_EV_MASK;
 		int key_press = key & KEY_EV_PRESSED;
 
-		if (key_val >= GPI_PIN_BASE && key_val <= GPI_PIN_END)
+		if (key_val >= GPI_PIN_BASE && key_val <= GPI_PIN_END) {
 			/* gpio line used as IRQ source */
 			adp5588_gpio_irq_handle(kpad, key_val, key_press);
-		else
+		} else {
+			int row = (key_val - 1) / kpad->cols;
+			int col =  (key_val - 1) % kpad->cols;
+			int code = MATRIX_SCAN_CODE(row, col, kpad->row_shift);
+
 			input_report_key(kpad->input,
-					 kpad->keycode[key_val - 1], key_press);
+					 kpad->keycode[code], key_press);
+		}
 	}
 }
 
@@ -477,6 +488,35 @@ static int adp5588_setup(struct i2c_client *client)
 	return 0;
 }
 
+static int adp5588_fw_parse(struct adp5588_kpad *kpad)
+{
+	struct i2c_client *client = kpad->client;
+	int ret;
+
+	ret = matrix_keypad_parse_properties(&client->dev, &kpad->rows,
+					     &kpad->cols);
+	if (ret)
+		return ret;
+
+	/* use macros in here!! */
+	if (kpad->rows > 8 || kpad->cols > 10) {
+		dev_err(&client->dev, "Invalid rows(%u) or cols(%u) value\n",
+			kpad->rows, kpad->cols);
+		return -EINVAL;
+	}
+
+	ret = matrix_keypad_build_keymap(NULL, NULL, kpad->rows, kpad->cols,
+					 kpad->keycode, kpad->input);
+	if (ret)
+		return ret;
+
+	kpad->row_shift = get_count_order(kpad->cols);
+	/* TODO: autorepeat and unlock keys */
+
+	return 0;
+
+}
+
 static int adp5588_probe(struct i2c_client *client,
 			 const struct i2c_device_id *id)
 {
@@ -494,21 +534,6 @@ static int adp5588_probe(struct i2c_client *client,
 		return -EIO;
 	}
 
-	if (!pdata) {
-		dev_err(&client->dev, "no platform data?\n");
-		return -EINVAL;
-	}
-
-	if (!pdata->rows || !pdata->cols || !pdata->keymap) {
-		dev_err(&client->dev, "no rows, cols or keymap from pdata\n");
-		return -EINVAL;
-	}
-
-	if (pdata->keymapsize != ADP5588_KEYMAPSIZE) {
-		dev_err(&client->dev, "invalid keymapsize\n");
-		return -EINVAL;
-	}
-
 	if (!client->irq) {
 		dev_err(&client->dev, "no IRQ?\n");
 		return -EINVAL;
@@ -523,6 +548,11 @@ static int adp5588_probe(struct i2c_client *client,
 
 	kpad->client = client;
 	kpad->input = input;
+
+	error = adp5588_fw_parse(kpad);
+	if (error)
+		return error;
+
 	INIT_DELAYED_WORK(&kpad->work, adp5588_work);
 
 	ret = adp5588_read(client, DEV_ID);
@@ -546,23 +576,9 @@ static int adp5588_probe(struct i2c_client *client,
 	input->id.product = 0x0001;
 	input->id.version = revid;
 
-	input->keycodesize = sizeof(kpad->keycode[0]);
-	input->keycodemax = pdata->keymapsize;
-	input->keycode = kpad->keycode;
-
-	memcpy(kpad->keycode, pdata->keymap,
-		pdata->keymapsize * input->keycodesize);
-
-	/* setup input device */
-	__set_bit(EV_KEY, input->evbit);
-
+	/* this can move in the parse_fw API! */
 	if (pdata->repeat)
 		__set_bit(EV_REP, input->evbit);
-
-	for (i = 0; i < input->keycodemax; i++)
-		if (kpad->keycode[i] <= KEY_MAX)
-			__set_bit(kpad->keycode[i], input->keybit);
-	__clear_bit(KEY_RESERVED, input->keybit);
 
 	error = input_register_device(input);
 	if (error) {
@@ -660,9 +676,16 @@ static const struct i2c_device_id adp5588_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, adp5588_id);
 
+static const of_device_id adp5588_of_match[] = {
+	{ .compatible = "adp5588-keys" },
+	{ .compatible = "adp5587-keys" },
+	{}
+};
+
 static struct i2c_driver adp5588_driver = {
 	.driver = {
 		.name = KBUILD_MODNAME,
+		.of_match_table = adp5588_of_match,
 #ifdef CONFIG_PM
 		.pm   = &adp5588_dev_pm_ops,
 #endif
