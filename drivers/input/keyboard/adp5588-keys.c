@@ -43,8 +43,6 @@ struct adp5588_kpad {
 	struct delayed_work work;
 	unsigned long delay;
 	unsigned short keycode[ADP5588_KEYMAPSIZE];
-	const struct adp5588_gpi_map *gpimap;
-	unsigned short gpimapsize;
 #ifdef CONFIG_GPIOLIB
 	unsigned char gpiomap[ADP5588_MAXGPIO];
 	bool export_gpio;
@@ -52,6 +50,8 @@ struct adp5588_kpad {
 	struct mutex gpio_lock;	/* Protect cached dir, dat_out */
 	u8 dat_out[3];
 	u8 dir[3];
+	u8 int_en[3];
+	u8 irq_mask[3];
 #endif
 };
 
@@ -169,9 +169,6 @@ static int adp5588_build_gpiomap(struct adp5588_kpad *kpad,
 	for (i = 0; i < pdata->cols; i++)
 		pin_used[i + GPI_PIN_COL_BASE - GPI_PIN_BASE] = true;
 
-	for (i = 0; i < kpad->gpimapsize; i++)
-		pin_used[kpad->gpimap[i].pin - GPI_PIN_BASE] = true;
-
 	for (i = 0; i < ADP5588_MAXGPIO; i++)
 		if (!pin_used[i])
 			kpad->gpiomap[n_unused++] = i;
@@ -179,11 +176,72 @@ static int adp5588_build_gpiomap(struct adp5588_kpad *kpad,
 	return n_unused;
 }
 
+static void adp5588_irq_bus_lock(struct irq_data *d)
+{
+	struct gpio_chip *gc = irq_data_get_irq_chip_data(d);
+	struct adp5588_kpad *kpad = gpiochip_get_data(gc);
+
+	mutex_lock(&kpad->gpio_lock);
+}
+
+static void adp5588_irq_bus_sync_unlock(struct irq_data *d)
+{
+	struct gpio_chip *gc = irq_data_get_irq_chip_data(d);
+	struct adp5588_kpad *kpad = gpiochip_get_data(gc);
+	int i;
+
+	for (i = 0; i <= ADP5588_BANK(ADP5588_MAXGPIO); i++) {
+		if (kpad->int_en[i] ^ kpad->irq_mask[i]) {
+			kpad->int_en[i] = kpad->irq_mask[i];
+			adp5588_write(kpad->client, GPI_EM1 + i, kpad->int_en[i]);
+		}
+	}
+
+	mutex_unlock(&kpad->gpio_lock);
+}
+
+static void adp5588_irq_mask(struct irq_data *d)
+{
+	struct gpio_chip *gc = irq_data_get_irq_chip_data(d);
+	struct adp5588_kpad *kpad = gpiochip_get_data(gc);
+	unsigned long real_irq = kpad->gpiomap[d->hwirq];
+
+	kpad->irq_mask[ADP5588_BANK(real_irq)] &= ~ADP5588_BIT(real_irq);
+}
+
+static void adp5588_irq_unmask(struct irq_data *d)
+{
+	struct gpio_chip *gc = irq_data_get_irq_chip_data(d);
+	struct adp5588_kpad *kpad = gpiochip_get_data(gc);
+	unsigned long real_irq = kpad->gpiomap[d->hwirq];
+
+	kpad->irq_mask[ADP5588_BANK(real_irq)] |= ADP5588_BIT(real_irq);
+}
+
+static int adp5588_irq_set_type(struct irq_data *d, unsigned int type)
+{
+	if (!(type & IRQ_TYPE_EDGE_BOTH))
+		return -EINVAL;
+
+	return 0;
+}
+
+static struct irq_chip adp5588_irq_chip = {
+	.name			= "adp5588",
+	.irq_mask		= adp5588_irq_mask,
+	.irq_unmask		= adp5588_irq_unmask,
+	.irq_bus_lock		= adp5588_irq_bus_lock,
+	.irq_bus_sync_unlock	= adp5588_irq_bus_sync_unlock,
+	.irq_set_type		= adp5588_irq_set_type,
+	.flags			= IRQCHIP_SKIP_SET_WAKE
+};
+
 static int adp5588_gpio_add(struct adp5588_kpad *kpad)
 {
 	struct device *dev = &kpad->client->dev;
 	const struct adp5588_kpad_platform_data *pdata = dev_get_platdata(dev);
 	const struct adp5588_gpio_platform_data *gpio_data = pdata->gpio_data;
+	struct gpio_irq_chip *girq;
 	int i, error;
 
 	if (!gpio_data)
@@ -207,6 +265,11 @@ static int adp5588_gpio_add(struct adp5588_kpad *kpad)
 	kpad->gc.label = kpad->client->name;
 	kpad->gc.owner = THIS_MODULE;
 	kpad->gc.names = gpio_data->names;
+
+	girq = &kpad->gc.irq;
+	girq->chip = &adp5588_irq_chip;
+	girq->handler = handle_simple_irq;
+	girq->threaded = true;
 
 	mutex_init(&kpad->gpio_lock);
 
@@ -253,6 +316,50 @@ static void adp5588_gpio_remove(struct adp5588_kpad *kpad)
 
 	gpiochip_remove(&kpad->gc);
 }
+
+static int adp5588_gpiomap_get_hwirq(const u8 *map, unsigned int gpio,
+				     unsigned int ngpios)
+{
+	unsigned int hwirq;
+
+	for (hwirq = 0; hwirq < ngpios; hwirq++)
+		if (map[hwirq] == gpio)
+			return hwirq;
+
+	/* should never happen */
+	WARN_ON_ONCE(hwirq == ngpios);
+
+	return -ENOENT;
+}
+
+static void adp5588_gpio_irq_handle(struct adp5588_kpad *kpad, int key_val,
+				    int key_press)
+{
+	unsigned int irq, gpio = key_val - GPI_PIN_BASE, irq_type, hwirq;
+	struct i2c_client *client = kpad->client;
+	struct irq_data *desc;
+
+	hwirq = adp5588_gpiomap_get_hwirq(kpad->gpiomap, gpio, kpad->gc.ngpio);
+	if (hwirq < 0) {
+		dev_err(&client->dev, "Could not get hwirq for key(%u)\n", key_val);
+		return;
+	}
+
+	irq = irq_find_mapping(kpad->gc.irq.domain, hwirq);
+	if (irq <= 0)
+		return;
+
+	desc = irq_get_irq_data(irq);
+	if (!desc) {
+		dev_err(&client->dev, "Could not get irq(%u) data\n", irq);
+		return;
+	}
+
+	irq_type = irqd_get_trigger_type(desc);
+	if ((irq_type & IRQ_TYPE_EDGE_RISING && key_press) ||
+	    (irq_type & IRQ_TYPE_EDGE_FALLING && !key_press))
+		handle_nested_irq(irq);
+}
 #else
 static inline int adp5588_gpio_add(struct adp5588_kpad *kpad)
 {
@@ -262,30 +369,28 @@ static inline int adp5588_gpio_add(struct adp5588_kpad *kpad)
 static inline void adp5588_gpio_remove(struct adp5588_kpad *kpad)
 {
 }
+
+static inline void adp5588_gpio_irq_handle(struct adp5588_kpad *kpad,
+					   int key_val, int key_press)
+{
+}
 #endif
 
 static void adp5588_report_events(struct adp5588_kpad *kpad, int ev_cnt)
 {
-	int i, j;
+	int i;
 
 	for (i = 0; i < ev_cnt; i++) {
 		int key = adp5588_read(kpad->client, Key_EVENTA + i);
 		int key_val = key & KEY_EV_MASK;
+		int key_press = key & KEY_EV_PRESSED;
 
-		if (key_val >= GPI_PIN_BASE && key_val <= GPI_PIN_END) {
-			for (j = 0; j < kpad->gpimapsize; j++) {
-				if (key_val == kpad->gpimap[j].pin) {
-					input_report_switch(kpad->input,
-							kpad->gpimap[j].sw_evt,
-							key & KEY_EV_PRESSED);
-					break;
-				}
-			}
-		} else {
+		if (key_val >= GPI_PIN_BASE && key_val <= GPI_PIN_END)
+			/* gpio line used as IRQ source */
+			adp5588_gpio_irq_handle(kpad, key_val, key_press);
+		else
 			input_report_key(kpad->input,
-					 kpad->keycode[key_val - 1],
-					 key & KEY_EV_PRESSED);
-		}
+					 kpad->keycode[key_val - 1], key_press);
 	}
 }
 
@@ -332,7 +437,6 @@ static int adp5588_setup(struct i2c_client *client)
 			dev_get_platdata(&client->dev);
 	const struct adp5588_gpio_platform_data *gpio_data = pdata->gpio_data;
 	int i, ret;
-	unsigned char evt_mode1 = 0, evt_mode2 = 0, evt_mode3 = 0;
 
 	ret = adp5588_write(client, KP_GPIO1, KP_SEL(pdata->rows));
 	ret |= adp5588_write(client, KP_GPIO2, KP_SEL(pdata->cols) & 0xFF);
@@ -346,23 +450,6 @@ static int adp5588_setup(struct i2c_client *client)
 
 	for (i = 0; i < KEYP_MAX_EVENT; i++)
 		ret |= adp5588_read(client, Key_EVENTA);
-
-	for (i = 0; i < pdata->gpimapsize; i++) {
-		unsigned short pin = pdata->gpimap[i].pin;
-
-		if (pin <= GPI_PIN_ROW_END) {
-			evt_mode1 |= (1 << (pin - GPI_PIN_ROW_BASE));
-		} else {
-			evt_mode2 |= ((1 << (pin - GPI_PIN_COL_BASE)) & 0xFF);
-			evt_mode3 |= ((1 << (pin - GPI_PIN_COL_BASE)) >> 8);
-		}
-	}
-
-	if (pdata->gpimapsize) {
-		ret |= adp5588_write(client, GPI_EM1, evt_mode1);
-		ret |= adp5588_write(client, GPI_EM2, evt_mode2);
-		ret |= adp5588_write(client, GPI_EM3, evt_mode3);
-	}
 
 	if (gpio_data) {
 		for (i = 0; i <= ADP5588_BANK(ADP5588_MAXGPIO); i++) {
@@ -389,44 +476,6 @@ static int adp5588_setup(struct i2c_client *client)
 
 	return 0;
 }
-
-static void adp5588_report_switch_state(struct adp5588_kpad *kpad)
-{
-	int gpi_stat1 = adp5588_read(kpad->client, GPIO_DAT_STAT1);
-	int gpi_stat2 = adp5588_read(kpad->client, GPIO_DAT_STAT2);
-	int gpi_stat3 = adp5588_read(kpad->client, GPIO_DAT_STAT3);
-	int gpi_stat_tmp, pin_loc;
-	int i;
-
-	for (i = 0; i < kpad->gpimapsize; i++) {
-		unsigned short pin = kpad->gpimap[i].pin;
-
-		if (pin <= GPI_PIN_ROW_END) {
-			gpi_stat_tmp = gpi_stat1;
-			pin_loc = pin - GPI_PIN_ROW_BASE;
-		} else if ((pin - GPI_PIN_COL_BASE) < 8) {
-			gpi_stat_tmp = gpi_stat2;
-			pin_loc = pin - GPI_PIN_COL_BASE;
-		} else {
-			gpi_stat_tmp = gpi_stat3;
-			pin_loc = pin - GPI_PIN_COL_BASE - 8;
-		}
-
-		if (gpi_stat_tmp < 0) {
-			dev_err(&kpad->client->dev,
-				"Can't read GPIO_DAT_STAT switch %d default to OFF\n",
-				pin);
-			gpi_stat_tmp = 0;
-		}
-
-		input_report_switch(kpad->input,
-				    kpad->gpimap[i].sw_evt,
-				    !(gpi_stat_tmp & (1 << pin_loc)));
-	}
-
-	input_sync(kpad->input);
-}
-
 
 static int adp5588_probe(struct i2c_client *client,
 			 const struct i2c_device_id *id)
@@ -458,37 +507,6 @@ static int adp5588_probe(struct i2c_client *client,
 	if (pdata->keymapsize != ADP5588_KEYMAPSIZE) {
 		dev_err(&client->dev, "invalid keymapsize\n");
 		return -EINVAL;
-	}
-
-	if (!pdata->gpimap && pdata->gpimapsize) {
-		dev_err(&client->dev, "invalid gpimap from pdata\n");
-		return -EINVAL;
-	}
-
-	if (pdata->gpimapsize > ADP5588_GPIMAPSIZE_MAX) {
-		dev_err(&client->dev, "invalid gpimapsize\n");
-		return -EINVAL;
-	}
-
-	for (i = 0; i < pdata->gpimapsize; i++) {
-		unsigned short pin = pdata->gpimap[i].pin;
-
-		if (pin < GPI_PIN_BASE || pin > GPI_PIN_END) {
-			dev_err(&client->dev, "invalid gpi pin data\n");
-			return -EINVAL;
-		}
-
-		if (pin <= GPI_PIN_ROW_END) {
-			if (pin - GPI_PIN_ROW_BASE + 1 <= pdata->rows) {
-				dev_err(&client->dev, "invalid gpi row data\n");
-				return -EINVAL;
-			}
-		} else {
-			if (pin - GPI_PIN_COL_BASE + 1 <= pdata->cols) {
-				dev_err(&client->dev, "invalid gpi col data\n");
-				return -EINVAL;
-			}
-		}
 	}
 
 	if (!client->irq) {
@@ -535,9 +553,6 @@ static int adp5588_probe(struct i2c_client *client,
 	memcpy(kpad->keycode, pdata->keymap,
 		pdata->keymapsize * input->keycodesize);
 
-	kpad->gpimap = pdata->gpimap;
-	kpad->gpimapsize = pdata->gpimapsize;
-
 	/* setup input device */
 	__set_bit(EV_KEY, input->evbit);
 
@@ -548,11 +563,6 @@ static int adp5588_probe(struct i2c_client *client,
 		if (kpad->keycode[i] <= KEY_MAX)
 			__set_bit(kpad->keycode[i], input->keybit);
 	__clear_bit(KEY_RESERVED, input->keybit);
-
-	if (kpad->gpimapsize)
-		__set_bit(EV_SW, input->evbit);
-	for (i = 0; i < kpad->gpimapsize; i++)
-		__set_bit(kpad->gpimap[i].sw_evt, input->swbit);
 
 	error = input_register_device(input);
 	if (error) {
@@ -571,9 +581,6 @@ static int adp5588_probe(struct i2c_client *client,
 	error = adp5588_setup(client);
 	if (error)
 		goto err_free_irq;
-
-	if (kpad->gpimapsize)
-		adp5588_report_switch_state(kpad);
 
 	error = adp5588_gpio_add(kpad);
 	if (error)
