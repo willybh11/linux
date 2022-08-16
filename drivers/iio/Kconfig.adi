@@ -149,6 +149,7 @@ config IIO_ALL_ADI_DRIVERS
 	select ADIS16203
 	select ADIS16240
 	select AD7780
+	select AD7779
 	select AD7816
 	select AD7192
 	select AD7280
