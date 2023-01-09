@@ -274,13 +274,7 @@ static int axi_pwmgen_probe(struct platform_device *pdev)
 	if (ret < 0)
 		return ret;
 
-	ret = devm_pwmchip_add(&pdev->dev, &pwm->chip);
-	if (ret)
-		return ret;
-
-	platform_set_drvdata(pdev, pwm);
-
-	return 0;
+	return devm_pwmchip_add(&pdev->dev, &pwm->chip);
 }
 
 static struct platform_driver axi_pwmgen_driver = {

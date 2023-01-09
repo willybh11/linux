@@ -971,12 +971,14 @@ static int ad7768_probe(struct spi_device *spi)
 		return ret;
 	}
 
+	ret = ad7768_set_channel_label(indio_dev, ARRAY_SIZE(ad7768_channels));
+	if (ret)
+		return ret;
+
 	if (st->spi_is_dma_mapped)
 		ret = ad7768_hardware_buffer_alloc(indio_dev);
 	else
 		ret = ad7768_triggered_buffer_alloc(indio_dev);
-
-	ret = ad7768_set_channel_label(indio_dev, ARRAY_SIZE(ad7768_channels));
 	if (ret)
 		return ret;
 

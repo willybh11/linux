@@ -48,7 +48,7 @@ After being requested, a PWM has to be configured using::
 	int pwm_apply_state(struct pwm_device *pwm, struct pwm_state *state);
 
 This API controls the PWM period, duty_cycle and phase config together with
-enable/disable state.
+the enable/disable state.
 There is also a usage_power setting: If set, the PWM driver is only required to
 maintain the power output but has more freedom regarding signal form.
 If supported by the driver, the signal can be optimized, for example to improve

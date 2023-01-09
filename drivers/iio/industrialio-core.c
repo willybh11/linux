@@ -567,7 +567,6 @@ ssize_t iio_enum_write(struct iio_dev *indio_dev,
 	size_t len)
 {
 	const struct iio_enum *e = (const struct iio_enum *)priv;
-	unsigned int i;
 	int ret;
 
 	if (!e->set)
@@ -577,7 +576,7 @@ ssize_t iio_enum_write(struct iio_dev *indio_dev,
 	if (ret < 0)
 		return ret;
 
-	ret = e->set(indio_dev, chan, i);
+	ret = e->set(indio_dev, chan, ret);
 	return ret ? ret : len;
 }
 EXPORT_SYMBOL_GPL(iio_enum_write);
@@ -1774,13 +1773,6 @@ static int iio_chrdev_release(struct inode *inode, struct file *filp)
 	struct iio_dev *indio_dev = &iio_dev_opaque->indio_dev;
 	kfree(ib);
 	clear_bit(IIO_BUSY_BIT_POS, &iio_dev_opaque->flags);
-	/*
-	 * !NOTE: This will fail on a multiple buffer scenario as indio_dev->buffer just
-	 * points to the "attached" buffer. However, I'm not bothering in fixing this as
-	 * we are making efforts to replace the existent DMA buffer API and we don't
-	 * really have any users for multiple buffers. Hence, I'm betting against having
-	 * the new DMA buffer API supported before we have a muliple buffer user.
-	 */
 	if (indio_dev->buffer)
 		iio_buffer_free_blocks(indio_dev->buffer);
 	iio_device_put(indio_dev);

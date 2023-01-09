@@ -177,8 +177,9 @@ static bool iio_buffer_space_available(struct iio_buffer *buf)
 ssize_t iio_buffer_write(struct file *filp, const char __user *buf,
 			 size_t n, loff_t *f_ps)
 {
-	struct iio_dev *indio_dev = filp->private_data;
-	struct iio_buffer *rb = indio_dev->buffer;
+	struct iio_dev_buffer_pair *ib = filp->private_data;
+	struct iio_buffer *rb = ib->buffer;
+	struct iio_dev *indio_dev = ib->indio_dev;
 	int ret;
 
 	if (!rb || !rb->access->write)
@@ -446,7 +447,7 @@ static bool iio_validate_scan_mask(struct iio_dev *indio_dev,
 }
 
 /**
- * iio_scan_mask_set() - set particular bit in the scan mask
+ * iio_channel_mask_set() - set particular bit in the scan mask
  * @indio_dev: the iio device
  * @buffer: the buffer whose scan mask we are interested in
  * @bit: the bit to be set.
@@ -455,7 +456,7 @@ static bool iio_validate_scan_mask(struct iio_dev *indio_dev,
  * buffers might request, hence this code only verifies that the
  * individual buffers request is plausible.
  */
-static int iio_scan_mask_set(struct iio_dev *indio_dev,
+static int iio_channel_mask_set(struct iio_dev *indio_dev,
 		      struct iio_buffer *buffer, int bit)
 {
 	const unsigned long *mask;
@@ -467,7 +468,8 @@ static int iio_scan_mask_set(struct iio_dev *indio_dev,
 		return -EINVAL;
 	}
 
-	trialmask = bitmap_alloc(indio_dev->masklength, GFP_KERNEL);
+	/* Upstream uses bitmap_alloc since there's no channel mask support */
+	trialmask = bitmap_zalloc(indio_dev->masklength, GFP_KERNEL);
 	if (!trialmask)
 		return -ENOMEM;
 
@@ -498,7 +500,7 @@ err_invalid_mask:
 	return -EINVAL;
 }
 
-static int iio_scan_mask_clear(struct iio_dev *indio_dev,
+static int iio_channel_mask_clear(struct iio_dev *indio_dev,
 	struct iio_buffer *buffer, int bit)
 {
 	unsigned int ch;
@@ -548,11 +550,11 @@ static ssize_t iio_scan_el_store(struct device *dev,
 	if (ret < 0)
 		goto error_ret;
 	if (!state && ret) {
-		ret = iio_scan_mask_clear(indio_dev, buffer, this_attr->address);
+		ret = iio_channel_mask_clear(indio_dev, buffer, this_attr->address);
 		if (ret)
 			goto error_ret;
 	} else if (state && !ret) {
-		ret = iio_scan_mask_set(indio_dev, buffer, this_attr->address);
+		ret = iio_channel_mask_set(indio_dev, buffer, this_attr->address);
 		if (ret)
 			goto error_ret;
 	}
@@ -1523,10 +1525,178 @@ static int iio_buffer_chrdev_release(struct inode *inode, struct file *filep)
 	return 0;
 }
 
+static int iio_buffer_query_block(struct iio_buffer *buffer,
+				  struct iio_buffer_block __user *user_block)
+{
+	struct iio_buffer_block block;
+	int ret;
+
+	if (!buffer->access->query_block)
+		return -ENOSYS;
+
+	if (copy_from_user(&block, user_block, sizeof(block)))
+		return -EFAULT;
+
+	ret = buffer->access->query_block(buffer, &block);
+	if (ret)
+		return ret;
+
+	if (copy_to_user(user_block, &block, sizeof(block)))
+		return -EFAULT;
+
+	return 0;
+}
+
+static int iio_buffer_dequeue_block(struct iio_dev *indio_dev,
+				    struct iio_buffer *buffer,
+				    struct iio_buffer_block __user *user_block,
+				    bool non_blocking)
+{
+	struct iio_dev_opaque *iio_dev_opaque = to_iio_dev_opaque(indio_dev);
+	struct iio_buffer_block block;
+	int ret;
+
+	if (!buffer->access->dequeue_block)
+		return -ENOSYS;
+
+	do {
+		if (!iio_buffer_data_available(buffer)) {
+			if (non_blocking)
+				return -EAGAIN;
+
+			/*
+			 * With 5.15, we always reach this point witth the lock
+			 * held so that we need to unlock it before going to
+			 * sleep so it's still possible to unregister the device.
+			 */
+			mutex_unlock(&iio_dev_opaque->info_exist_lock);
+			ret = wait_event_interruptible(buffer->pollq,
+						       iio_buffer_data_available(buffer) ||
+						       !indio_dev->info);
+			if (ret)
+				return ret;
+
+			mutex_lock(&iio_dev_opaque->info_exist_lock);
+			if (!indio_dev->info)
+				return -ENODEV;
+		}
+
+		ret = buffer->access->dequeue_block(buffer, &block);
+		if (ret == -EAGAIN && non_blocking)
+			ret = 0;
+	} while (ret);
+
+	if (ret)
+		return ret;
+
+	if (copy_to_user(user_block, &block, sizeof(block)))
+		return -EFAULT;
+
+	return 0;
+}
+
+static int iio_buffer_enqueue_block(struct iio_buffer *buffer,
+				    struct iio_buffer_block __user *user_block)
+{
+	struct iio_buffer_block block;
+
+	if (!buffer->access->enqueue_block)
+		return -ENOSYS;
+
+	if (copy_from_user(&block, user_block, sizeof(block)))
+		return -EFAULT;
+
+	return buffer->access->enqueue_block(buffer, &block);
+}
+
+static int iio_buffer_alloc_blocks(struct iio_buffer *buffer,
+				   struct iio_buffer_block_alloc_req __user *user_req)
+{
+	struct iio_buffer_block_alloc_req req;
+	int ret;
+
+	if (!buffer->access->alloc_blocks)
+		return -ENOSYS;
+
+	if (copy_from_user(&req, user_req, sizeof(req)))
+		return -EFAULT;
+
+	ret = buffer->access->alloc_blocks(buffer, &req);
+	if (ret)
+		return ret;
+
+	if (copy_to_user(user_req, &req, sizeof(req)))
+		return -EFAULT;
+
+	return 0;
+}
+
+void iio_buffer_free_blocks(struct iio_buffer *buffer)
+{
+	if (buffer->access->free_blocks)
+		buffer->access->free_blocks(buffer);
+}
+
+static int iio_buffer_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
+{
+	struct iio_dev_buffer_pair *ib = filp->private_data;
+	bool non_blocking = filp->f_flags & O_NONBLOCK;
+	struct iio_dev *indio_dev = ib->indio_dev;
+	struct iio_buffer *rb = ib->buffer;
+
+	if (!rb || !rb->access)
+		return -ENODEV;
+
+	switch (cmd) {
+	case IIO_BLOCK_ALLOC_IOCTL:
+		return iio_buffer_alloc_blocks(rb, (struct iio_buffer_block_alloc_req __user *)arg);
+	case IIO_BLOCK_FREE_IOCTL:
+		iio_buffer_free_blocks(rb);
+		return 0;
+	case IIO_BLOCK_QUERY_IOCTL:
+		return iio_buffer_query_block(rb, (struct iio_buffer_block __user *)arg);
+	case IIO_BLOCK_ENQUEUE_IOCTL:
+		return iio_buffer_enqueue_block(rb, (struct iio_buffer_block __user *)arg);
+	case IIO_BLOCK_DEQUEUE_IOCTL:
+		return iio_buffer_dequeue_block(indio_dev, rb,
+						(struct iio_buffer_block __user *)arg,
+						non_blocking);
+	default:
+		return IIO_IOCTL_UNHANDLED;
+	}
+}
+
+int iio_buffer_mmap(struct file *filep, struct vm_area_struct *vma)
+{
+	struct iio_dev_buffer_pair *ib = filep->private_data;
+	struct iio_dev *indio_dev = ib->indio_dev;
+	struct iio_buffer *rb = ib->buffer;
+
+	if (!rb || !rb->access || !rb->access->mmap)
+		return -ENODEV;
+
+	if (!(vma->vm_flags & VM_SHARED))
+		return -EINVAL;
+
+	switch (indio_dev->direction) {
+	case IIO_DEVICE_DIRECTION_IN:
+		if (!(vma->vm_flags & VM_READ))
+			return -EINVAL;
+		break;
+	case IIO_DEVICE_DIRECTION_OUT:
+		if (!(vma->vm_flags & VM_WRITE))
+			return -EINVAL;
+		break;
+	}
+
+	return rb->access->mmap(rb, vma);
+}
+
 static const struct file_operations iio_buffer_chrdev_fileops = {
 	.owner = THIS_MODULE,
 	.llseek = noop_llseek,
 	.read = iio_buffer_read,
+	.write = iio_buffer_write,
 	.poll = iio_buffer_poll,
 	.release = iio_buffer_chrdev_release,
 };
@@ -1587,14 +1757,25 @@ error_iio_dev_put:
 	return ret;
 }
 
+/*
+ * This code diverges from upstream so we can support our high speed API
+ * with multi buffer support. Should be removed as soon as the high speed
+ * API gets upstream.
+ */
 static long iio_device_buffer_ioctl(struct iio_dev *indio_dev, struct file *filp,
 				    unsigned int cmd, unsigned long arg)
 {
+	struct iio_dev_buffer_pair *ib = filp->private_data;
+	struct iio_buffer *rb = ib->buffer;
+
 	switch (cmd) {
 	case IIO_BUFFER_GET_FD_IOCTL:
 		return iio_device_buffer_getfd(indio_dev, arg);
 	default:
-		return IIO_IOCTL_UNHANDLED;
+		/* check if buffer0 was opened through new API */
+		if (test_bit(IIO_BUSY_BIT_POS, &rb->flags))
+			return -EBUSY;
+		return iio_buffer_ioctl(filp, cmd, arg);
 	}
 }
 
@@ -1905,162 +2086,6 @@ void iio_buffer_put(struct iio_buffer *buffer)
 		kref_put(&buffer->ref, iio_buffer_release);
 }
 EXPORT_SYMBOL_GPL(iio_buffer_put);
-
-static int iio_buffer_query_block(struct iio_buffer *buffer,
-	struct iio_buffer_block __user *user_block)
-{
-	struct iio_buffer_block block;
-	int ret;
-
-	if (!buffer->access->query_block)
-		return -ENOSYS;
-
-	if (copy_from_user(&block, user_block, sizeof(block)))
-		return -EFAULT;
-
-	ret = buffer->access->query_block(buffer, &block);
-	if (ret)
-		return ret;
-
-	if (copy_to_user(user_block, &block, sizeof(block)))
-		return -EFAULT;
-
-	return 0;
-}
-
-static int iio_buffer_dequeue_block(struct iio_dev *indio_dev,
-	struct iio_buffer_block __user *user_block, bool non_blocking)
-{
-	struct iio_buffer *buffer = indio_dev->buffer;
-	struct iio_buffer_block block;
-	int ret;
-
-	if (!buffer->access->dequeue_block)
-		return -ENOSYS;
-
-	do {
-		if (!iio_buffer_data_available(buffer)) {
-			if (non_blocking)
-				return -EAGAIN;
-
-			ret = wait_event_interruptible(buffer->pollq,
-					iio_buffer_data_available(buffer) ||
-					indio_dev->info == NULL);
-			if (ret)
-				return ret;
-			if (indio_dev->info == NULL)
-				return -ENODEV;
-		}
-
-		ret = buffer->access->dequeue_block(buffer, &block);
-		if (ret == -EAGAIN && non_blocking)
-			ret = 0;
-	 } while (ret);
-
-	 if (ret)
-		return ret;
-
-	if (copy_to_user(user_block, &block, sizeof(block)))
-		return -EFAULT;
-
-	return 0;
-}
-
-static int iio_buffer_enqueue_block(struct iio_buffer *buffer,
-	struct iio_buffer_block __user *user_block)
-{
-	struct iio_buffer_block block;
-
-	if (!buffer->access->enqueue_block)
-		return -ENOSYS;
-
-	if (copy_from_user(&block, user_block, sizeof(block)))
-		return -EFAULT;
-
-	return buffer->access->enqueue_block(buffer, &block);
-}
-
-static int iio_buffer_alloc_blocks(struct iio_buffer *buffer,
-	struct iio_buffer_block_alloc_req __user *user_req)
-{
-	struct iio_buffer_block_alloc_req req;
-	int ret;
-
-	if (!buffer->access->alloc_blocks)
-		return -ENOSYS;
-
-	if (copy_from_user(&req, user_req, sizeof(req)))
-		return -EFAULT;
-
-	ret = buffer->access->alloc_blocks(buffer, &req);
-	if (ret)
-		return ret;
-
-	if (copy_to_user(user_req, &req, sizeof(req)))
-		return -EFAULT;
-
-	return 0;
-}
-
-void iio_buffer_free_blocks(struct iio_buffer *buffer)
-{
-	if (buffer->access->free_blocks)
-		buffer->access->free_blocks(buffer);
-}
-
-long iio_buffer_ioctl(struct iio_dev *indio_dev, struct file *filep,
-		unsigned int cmd, unsigned long arg)
-{
-	bool non_blocking = filep->f_flags & O_NONBLOCK;
-	struct iio_buffer *buffer = indio_dev->buffer;
-
-	if (!buffer || !buffer->access)
-		return -ENODEV;
-
-	switch (cmd) {
-	case IIO_BLOCK_ALLOC_IOCTL:
-		return iio_buffer_alloc_blocks(buffer,
-			(struct iio_buffer_block_alloc_req __user *)arg);
-	case IIO_BLOCK_FREE_IOCTL:
-		iio_buffer_free_blocks(buffer);
-		return 0;
-	case IIO_BLOCK_QUERY_IOCTL:
-		return iio_buffer_query_block(buffer,
-			(struct iio_buffer_block __user *)arg);
-	case IIO_BLOCK_ENQUEUE_IOCTL:
-		return iio_buffer_enqueue_block(buffer,
-			(struct iio_buffer_block __user *)arg);
-	case IIO_BLOCK_DEQUEUE_IOCTL:
-		return iio_buffer_dequeue_block(indio_dev,
-			(struct iio_buffer_block __user *)arg, non_blocking);
-	}
-	return -EINVAL;
-}
-
-int iio_buffer_mmap(struct file *filep, struct vm_area_struct *vma)
-{
-	struct iio_dev *indio_dev = filep->private_data;
-
-	if (!indio_dev->buffer || !indio_dev->buffer->access ||
-		!indio_dev->buffer->access->mmap)
-		return -ENODEV;
-
-	if (!(vma->vm_flags & VM_SHARED))
-		return -EINVAL;
-
-	switch (indio_dev->direction) {
-	case IIO_DEVICE_DIRECTION_IN:
-		if (!(vma->vm_flags & VM_READ))
-			return -EINVAL;
-		break;
-	case IIO_DEVICE_DIRECTION_OUT:
-		if (!(vma->vm_flags & VM_WRITE))
-			return -EINVAL;
-		break;
-	}
-
-	return indio_dev->buffer->access->mmap(indio_dev->buffer, vma);
-}
 
 /**
  * iio_device_attach_buffer - Attach a buffer to a IIO device

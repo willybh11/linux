@@ -80,8 +80,6 @@ void iio_buffers_free_sysfs_and_mask(struct iio_dev *indio_dev);
 
 void iio_disable_all_buffers(struct iio_dev *indio_dev);
 void iio_buffer_wakeup_poll(struct iio_dev *indio_dev);
-long iio_buffer_ioctl(struct iio_dev *indio_dev, struct file *filp,
-	unsigned int cmd, unsigned long arg);
 int iio_buffer_mmap(struct file *filep, struct vm_area_struct *vma);
 void iio_buffer_free_blocks(struct iio_buffer *buffer);
 void iio_device_detach_buffers(struct iio_dev *indio_dev);
@@ -103,12 +101,6 @@ static inline void iio_buffers_free_sysfs_and_mask(struct iio_dev *indio_dev) {}
 static inline void iio_disable_all_buffers(struct iio_dev *indio_dev) {}
 static inline void iio_buffer_wakeup_poll(struct iio_dev *indio_dev) {}
 static inline void iio_buffer_free_blocks(struct iio_buffer *buffer) {}
-
-static inline long iio_buffer_ioctl(struct iio_dev *indio_dev,
-	struct file *filp, unsigned int cmd, unsigned long arg)
-{
-	return -ENXIO;
-}
 
 static inline int iio_buffer_alloc_sysfs(struct iio_dev *indio_dev)
 {

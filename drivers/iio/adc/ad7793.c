@@ -825,6 +825,7 @@ struct ad7793_platform_data *ad7793_parse_dt(struct device *dev)
 	return NULL;
 }
 #endif
+
 static void ad7793_reg_disable(void *reg)
 {
 	regulator_disable(reg);
