@@ -175,6 +175,12 @@ build_check_is_new_adi_driver_dual_licensed() {
 	return $ret
 }
 
+__setup_dummy_git_account() {
+	# setup an email account so that we can cherry-pick stuff
+	git config user.name "CSE CI"
+	git config user.email "cse-ci-notifications@analog.com"
+}
+
 build_default() {
 	[ -n "$DEFCONFIG" ] || {
 		echo_red "No DEFCONFIG provided"
@@ -193,6 +199,12 @@ build_default() {
 	# make sure git does not complain about unsafe repositories when
 	# building inside docker.
 	[ -d /docker_build_dir ] && git config --global --add safe.directory /docker_build_dir
+
+	[ "$ARCH" = "arm" ] && {
+		sed -i  '/CONFIG_GCC_PLUGINS/d' arch/arm/configs/$DEFCONFIG
+		__setup_dummy_git_account
+		git commit -a -m "dummy commit to remove CONFIG_GCC_PLUGINS"
+	}
 
 	make ${DEFCONFIG}
 	if [[ "${SYSTEM_PULLREQUEST_TARGETBRANCH}" =~ ^rpi-.* || "${BUILD_SOURCEBRANCH}" =~ ^refs/heads/rpi-.* \
@@ -437,11 +449,7 @@ __handle_sync_with_main() {
 
 	tmpfile=$(mktemp)
 
-	if [ "$CI" = "true" ] ; then
-		# setup an email account so that we can cherry-pick stuff
-		git config user.name "CSE CI"
-		git config user.email "cse-ci-notifications@analog.com"
-	fi
+	[ "$CI" = "true" ] && __setup_dummy_git_account
 
 	git checkout FETCH_HEAD
 	# cherry-pick until all commits; if we get a merge-commit, handle it. Note that
