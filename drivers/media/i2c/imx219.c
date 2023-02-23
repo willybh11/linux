@@ -1632,10 +1632,12 @@ static int imx219_probe(struct i2c_client *client)
 		goto error_media_entity;
 	}
 
+#if 0
 	/* Enable runtime PM and turn off the device */
 	pm_runtime_set_active(dev);
 	pm_runtime_enable(dev);
 	pm_runtime_idle(dev);
+#endif
 
 	return 0;
 
@@ -1657,10 +1659,12 @@ static int imx219_remove(struct i2c_client *client)
 	media_entity_cleanup(&sd->entity);
 	imx219_free_controls(imx219);
 
+#if 0
 	pm_runtime_disable(&client->dev);
 	if (!pm_runtime_status_suspended(&client->dev))
 		imx219_power_off(&client->dev);
 	pm_runtime_set_suspended(&client->dev);
+#endif
 
 	return 0;
 }
