@@ -187,6 +187,9 @@ struct ad9081_phy {
 	u32 sysref_average_cnt_exp;
 	bool sysref_continuous_dis;
 	bool sysref_coupling_ac_en;
+	bool sysref_cmos_input_en;
+	u8 sysref_cmos_single_end_term_pos;
+	u8 sysref_cmos_single_end_term_neg;
 
 	bool config_sync_01_swapped;
 	bool config_sync_0a_cmos_en;
@@ -2343,9 +2346,12 @@ static int ad9081_setup(struct spi_device *spi)
 	if (ret != 0)
 		return ret;
 
-	/* DC couple SYSREF */
-	ret = adi_ad9081_jesd_sysref_input_mode_set(&phy->ad9081, 1, 1,
-		phy->sysref_coupling_ac_en ? COUPLING_AC : COUPLING_DC);
+	/* Configure SYSREF */
+	ret = adi_ad9081_sync_sysref_input_config_set(&phy->ad9081,
+		phy->sysref_coupling_ac_en ? COUPLING_AC : COUPLING_DC,
+		phy->sysref_cmos_input_en ? SIGNAL_CMOS : SIGNAL_LVDS,
+		phy->sysref_cmos_single_end_term_pos,
+		phy->sysref_cmos_single_end_term_neg);
 	if (ret != 0)
 		return ret;
 
@@ -2577,6 +2583,8 @@ static int ad9081_set_power_state(struct ad9081_phy *phy, bool on)
 			return ret;
 		}
 
+		phy->jrx_link_tx[0].lane_cal_rate_kbps = 0;
+
 		ret = ad9081_setup(phy->spi);
 		if (ret < 0) {
 			dev_err(&phy->spi->dev, "%s: setup failed (%d)\n",
@@ -2592,6 +2600,8 @@ static int ad9081_set_power_state(struct ad9081_phy *phy, bool on)
 			return 0;
 
 		jesd204_fsm_stop(phy->jdev, JESD204_LINKS_ALL);
+
+		phy->jrx_link_tx[0].lane_cal_rate_kbps = 0;
 
 		ret = adi_ad9081_device_reset(&phy->ad9081,
 			conv->reset_gpio ? AD9081_HARD_RESET_AND_INIT :
@@ -2724,6 +2734,8 @@ static ssize_t ad9081_phy_store(struct device *dev,
 			break;
 
 		if (enable) {
+			if (!phy->is_initialized)
+				phy->jrx_link_tx[0].lane_cal_rate_kbps = 0;
 			jesd204_fsm_stop(phy->jdev, JESD204_LINKS_ALL);
 			jesd204_fsm_clear_errors(phy->jdev, JESD204_LINKS_ALL);
 			ret = jesd204_fsm_start(phy->jdev, JESD204_LINKS_ALL);
@@ -3683,10 +3695,17 @@ static ssize_t ad9081_debugfs_write(struct file *file,
 			val3 = 1; /* 1 second */
 
 		mutex_lock(&indio_dev->mlock);
+		ret = adi_ad9081_jesd_cal_bg_cal_pause(&phy->ad9081);
+		if (ret) {
+			mutex_unlock(&indio_dev->mlock);
+			return ret;
+		}
 		ret = adi_ad9081_jesd_rx_spo_sweep(&phy->ad9081, val & 0x7,
 				ad9081_val_to_prbs(val2),
 				ad9081_deserializer_mode_get(&phy->jrx_link_tx[0]),
 				val3, &lv, &rv);
+
+		adi_ad9081_jesd_cal_bg_cal_start(&phy->ad9081);
 		if (ret) {
 			mutex_unlock(&indio_dev->mlock);
 			return ret;
@@ -4274,6 +4293,17 @@ static int ad9081_parse_dt(struct ad9081_phy *phy, struct device *dev)
 
 	phy->sysref_coupling_ac_en = of_property_read_bool(np,
 		"adi,sysref-ac-coupling-enable");
+
+	phy->sysref_cmos_input_en = of_property_read_bool(np,
+		"adi,sysref-cmos-input-enable");
+
+	phy->sysref_cmos_single_end_term_pos = 1; /* 6.3k */
+	of_property_read_u8(np, "adi,sysref-single-end-pos-termination",
+			&phy->sysref_cmos_single_end_term_pos);
+
+	phy->sysref_cmos_single_end_term_neg = 15; /* 6.4k */
+	of_property_read_u8(np, "adi,sysref-single-end-pos-termination",
+			&phy->sysref_cmos_single_end_term_neg);
 
 	phy->sysref_continuous_dis =
 		of_property_read_bool(np,
