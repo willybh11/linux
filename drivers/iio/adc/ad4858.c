@@ -119,7 +119,7 @@
 	.scan_index = index,					\
 	.scan_type = {						\
 		.sign = 's',					\
-		.realbits = 20,					\
+		.realbits = 24,					\
 		.storagebits = 32,				\
 	},							\
 }
