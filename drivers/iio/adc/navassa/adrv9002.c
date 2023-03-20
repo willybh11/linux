@@ -3278,6 +3278,8 @@ int adrv9002_init(struct adrv9002_rf_phy *phy, struct adi_adrv9001_Init *profile
 			goto error;
 	}
 
+	printk("Made it through setup!\r\n");
+
 	adrv9002_set_clk_rates(phy);
 
 	ret = adrv9002_ssi_configure(phy);
