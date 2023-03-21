@@ -3279,6 +3279,7 @@ int adrv9002_init(struct adrv9002_rf_phy *phy, struct adi_adrv9001_Init *profile
 	}
 
 	printk("Made it through setup!\r\n");
+	pr_notice("Made it through setup!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\r\n");
 
 	adrv9002_set_clk_rates(phy);
 
