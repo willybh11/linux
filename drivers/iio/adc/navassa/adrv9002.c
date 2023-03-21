@@ -4188,9 +4188,9 @@ int adrv9002_init(struct adrv9002_rf_phy *phy, struct adi_adrv9001_Init *profile
 	pr_info("pr_info:\tMade it through setup!!!!!!!!!!!!!!!");
 	printk(KERN_CRIT "KERN_CRIT printk:\tMade it through setup!!!!!!!!!!!!!!!");
 	pr_err("pr_err:\tMade it through setup!!!!!!!!!!!!!!!");
-	dev_err("dev_err:\tMade it through setup!!!!!!!!!!!!!!!");
+	// dev_err("dev_err:\tMade it through setup!!!!!!!!!!!!!!!");
 
-	obviousCompilerError()
+	// obviousCompilerError()
 
 	adrv9002_set_clk_rates(phy);
 
