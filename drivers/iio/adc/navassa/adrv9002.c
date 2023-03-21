@@ -4659,7 +4659,7 @@ static int adrv9002_probe(struct spi_device *spi)
 	pr_info("pr_info:\tin probe!!!!!!!!!!!!!!!");
 	printk(KERN_CRIT "KERN_CRIT printk:\tin probe!!!!!!!!!!!!!!!");
 	pr_err("pr_err:\tin probe!!!!!!!!!!!!!!!");
-	dev_err("dev_err:\tin probe!!!!!!!!!!!!!!!");
+	// dev_err("dev_err:\tin probe!!!!!!!!!!!!!!!");
 
 	id = of_device_get_match_data(&spi->dev);
 	if (!id)
