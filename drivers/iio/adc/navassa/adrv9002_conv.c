@@ -450,6 +450,8 @@ int adrv9002_axi_intf_tune(struct adrv9002_rf_phy *phy, const bool tx, const int
 	u32 saved_ctrl_7[4];
 	int n_chan;
 
+	printk("\r\n==========\r\nInside adrv9002_axi_intf_tune()\r\n==========\r\n\r\n");
+
 	adrv9002_axi_get_channel_range(conv, tx, &n_chan);
 	if (tx) {
 		off = chann ? ADI_TX2_REG_OFF : ADI_TX1_REG_OFF;
@@ -460,15 +462,19 @@ int adrv9002_axi_intf_tune(struct adrv9002_rf_phy *phy, const bool tx, const int
 		adrv9002_axi_rx_test_pattern_pn_sel(conv, off, n_chan);
 		/* start test */
 		ret = adrv9002_intf_test_cfg(phy, chann, tx, false);
-		if (ret)
+		if (ret) {
+			printk("\r\n==========\r\nadrv9002_intf_test_cfg() #1 failed\r\n==========\r\n\r\n");
 			return ret;
+		}
 	}
 
 	for (clk = 0; clk < ARRAY_SIZE(field); clk++) {
 		for (data = 0; data < sizeof(*field); data++) {
 			ret = adrv9002_intf_change_delay(phy, chann, clk, data, tx);
-			if (ret < 0)
+			if (ret < 0) {
+				printk("\r\n==========\r\nadrv9002_intf_change_delay() failed\r\n==========\r\n\r\n");
 				return ret;
+			}
 
 			if (tx) {
 				/*
@@ -476,8 +482,10 @@ int adrv9002_axi_intf_tune(struct adrv9002_rf_phy *phy, const bool tx, const int
 				 * the only way to reset the counters.
 				 */
 				ret = adrv9002_intf_test_cfg(phy, chann, tx, false);
-				if (ret)
+				if (ret) {
+					printk("\r\n==========\r\nadrv9002_intf_test_cfg() #2 failed\r\n==========\r\n\r\n");
 					return ret;
+				}
 			}
 			/* check result */
 			if (!tx)
@@ -493,8 +501,10 @@ int adrv9002_axi_intf_tune(struct adrv9002_rf_phy *phy, const bool tx, const int
 
 	/* stop test */
 	ret = adrv9002_intf_test_cfg(phy, chann, tx, true);
-	if (ret)
+	if (ret) {
+		printk("\r\n==========\r\nadrv9002_intf_test_cfg() #3 failed\r\n==========\r\n\r\n");
 		return ret;
+	}
 
 	/* stop tx pattern */
 	if (tx)
@@ -512,6 +522,7 @@ int adrv9002_axi_intf_tune(struct adrv9002_rf_phy *phy, const bool tx, const int
 		}
 	}
 
+	printk("\r\n==========\r\nreturned at end of _tune()\r\n==========\r\n\r\n");
 	return max_cnt ? 0 : -EIO;
 }
 
