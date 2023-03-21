@@ -4184,6 +4184,14 @@ int adrv9002_init(struct adrv9002_rf_phy *phy, struct adi_adrv9001_Init *profile
 			goto error;
 	}
 
+	printk("printk:\tMade it through setup!!!!!!!!!!!!!!!");
+	pr_info("pr_info:\tMade it through setup!!!!!!!!!!!!!!!");
+	printk(KERN_CRIT "KERN_CRIT printk:\tMade it through setup!!!!!!!!!!!!!!!");
+	pr_err("pr_err:\tMade it through setup!!!!!!!!!!!!!!!");
+	dev_err("dev_err:\tMade it through setup!!!!!!!!!!!!!!!");
+
+	obviousCompilerError()
+
 	adrv9002_set_clk_rates(phy);
 
 	ret = adrv9002_ssi_configure(phy);
@@ -4646,6 +4654,12 @@ static int adrv9002_probe(struct spi_device *spi)
 	struct clk *clk = NULL;
 	int ret, c;
 	const int *id;
+
+	printk("printk:\tin probe!!!!!!!!!!!!!!!");
+	pr_info("pr_info:\tin probe!!!!!!!!!!!!!!!");
+	printk(KERN_CRIT "KERN_CRIT printk:\tin probe!!!!!!!!!!!!!!!");
+	pr_err("pr_err:\tin probe!!!!!!!!!!!!!!!");
+	dev_err("dev_err:\tin probe!!!!!!!!!!!!!!!");
 
 	id = of_device_get_match_data(&spi->dev);
 	if (!id)
