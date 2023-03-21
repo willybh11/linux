@@ -4189,9 +4189,9 @@ int adrv9002_init(struct adrv9002_rf_phy *phy, struct adi_adrv9001_Init *profile
 	printk(KERN_CRIT "KERN_CRIT printk:\tMade it through setup!!!!!!!!!!!!!!!");
 	pr_err("pr_err:\tMade it through setup!!!!!!!!!!!!!!!");
 
-	printk("================================ did --prefetch work? ==========================\r\n");
+	printk("================================ did kernel rebuild work? ==========================\r\n");
 	
-	didprefetchwork()
+	// didprefetchwork()
 	// dev_err("dev_err:\tMade it through setup!!!!!!!!!!!!!!!");
 
 	// obviousCompilerError()
