@@ -3040,6 +3040,8 @@ static int adrv9002_intf_tuning(struct adrv9002_rf_phy *phy)
 	u8 clk_delay, data_delay;
 	int i;
 
+	printk("\r\n==========\r\nIn adrv9002_intf_tuning()\r\n==========\r\n\r\n");
+
 	for (i = 0; i < ARRAY_SIZE(phy->channels); i++) {
 		struct adrv9002_chan *c = phy->channels[i];
 
@@ -3069,8 +3071,10 @@ static int adrv9002_intf_tuning(struct adrv9002_rf_phy *phy)
 
 		ret = adrv9002_axi_intf_tune(phy, c->port == ADI_TX, c->idx, &clk_delay,
 					     &data_delay);
-		if (ret)
+		if (ret) {
+			printk("\r\n==========\r\nadrv9002_axi_intf_tune() failed\r\n==========\r\n\r\n");
 			return ret;
+		}
 
 		if (c->port == ADI_RX) {
 			dev_dbg(&phy->spi->dev, "RX: Got clk: %u, data: %u\n", clk_delay,
@@ -3090,8 +3094,10 @@ static int adrv9002_intf_tuning(struct adrv9002_rf_phy *phy)
 	}
 
 	ret = adi_adrv9001_Ssi_Delay_Configure(phy->adrv9001, phy->ssi_type, &delays);
-	if (ret)
+	if (ret) {
+		printk("\r\n==========\r\nadi_adrv9001_Ssi_Delay_Configure() failed\r\n==========\r\n\r\n");
 		return adrv9002_dev_err(phy);
+	}
 
 	return 0;
 }
@@ -4184,17 +4190,7 @@ int adrv9002_init(struct adrv9002_rf_phy *phy, struct adi_adrv9001_Init *profile
 			goto error;
 	}
 
-	printk("printk:\tMade it through setup!!!!!!!!!!!!!!!");
-	pr_info("pr_info:\tMade it through setup!!!!!!!!!!!!!!!");
-	printk(KERN_CRIT "KERN_CRIT printk:\tMade it through setup!!!!!!!!!!!!!!!");
-	pr_err("pr_err:\tMade it through setup!!!!!!!!!!!!!!!");
-
-	printk("================================ did kernel rebuild work? ==========================\r\n");
-	
-	// didprefetchwork()
-	// dev_err("dev_err:\tMade it through setup!!!!!!!!!!!!!!!");
-
-	// obviousCompilerError()
+	printk("\r\n==========\r\nMade it through adrv9002_setup()\r\n==========\r\n\r\n");
 
 	adrv9002_set_clk_rates(phy);
 
