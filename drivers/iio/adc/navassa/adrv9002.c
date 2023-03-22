@@ -4471,6 +4471,8 @@ static int adrv9002_profile_load(struct adrv9002_rf_phy *phy, const char *profil
 	const struct firmware *fw;
 	void *buf;
 
+	printk("\r\nprofile: %s\r\n\r\n", profile);
+
 	ret = request_firmware(&fw, profile, &phy->spi->dev);
 	if (ret)
 		return ret;
