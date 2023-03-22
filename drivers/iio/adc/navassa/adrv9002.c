@@ -3053,9 +3053,14 @@ static int adrv9002_intf_tuning(struct adrv9002_rf_phy *phy)
 	for (i = 0; i < ARRAY_SIZE(phy->channels); i++) {
 		struct adrv9002_chan *c = phy->channels[i];
 
-		if (!c->enabled)
+		pritnk("\r\nin for loop -- i = %d, i < %d, i++", i, ARRAY_SIZE(phy->channels));
+
+		if (!c->enabled) {
+			printk("\r\n!c->enabled is true, continuing\r\n\r\n");
 			continue;
+		}
 		if (phy->rx2tx2 && c->idx) {
+			printk("\r\nphy->rx2tx2 && c->idx is true, doing some stuff then continuing");
 			/*
 			 * In rx2tx2 we should treat both channels as the same. Hence, we will run
 			 * the test simultaneosly for both and configure the same delays.
@@ -3077,6 +3082,7 @@ static int adrv9002_intf_tuning(struct adrv9002_rf_phy *phy)
 			continue;
 		}
 
+		printk("\r\ncalling intf_tune()\r\n\r\n");
 		ret = adrv9002_axi_intf_tune(phy, c->port == ADI_TX, c->idx, &clk_delay,
 					     &data_delay);
 		if (ret) {
