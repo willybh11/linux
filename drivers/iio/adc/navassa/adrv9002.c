@@ -2924,11 +2924,17 @@ int adrv9002_check_tx_test_pattern(struct adrv9002_rf_phy *phy, const int chann)
 		status.dataError, status.fifoFull, status.fifoEmpty, status.strobeAlignError);
 
 	/* only looking for data errors for now */
-	if (status.dataError)
+	if (status.dataError) {
+		printk("\r\n==========\r\ninside tx_test_pattern: status.dataError\r\n==========\r\n\r\n");
 		return 1;
+	}
 
-	if (!phy->rx2tx2)
+	if (!phy->rx2tx2) {
+		printk("\r\n==========\r\ninside tx_test_pattern: !phy->rx2tx2\r\n==========\r\n\r\n");
 		return 0;
+	}
+
+	printk("\r\n==========\r\ninside tx_test_pattern: phy->rx2tx2 true\r\n==========\r\n\r\n");
 
 	/* on rx2tx2 we will only get here on index 0 so the following is fine */
 	chan = &phy->tx_channels[chann + 1].channel;
