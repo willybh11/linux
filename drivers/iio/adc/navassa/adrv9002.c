@@ -4583,10 +4583,14 @@ int adrv9002_post_init(struct adrv9002_rf_phy *phy)
 		}
 	}
 
+	printk("\r\nI might call profile_load(lvds)...\r\n\r\n")
 	if (phy->ssi_type == ADI_ADRV9001_SSI_TYPE_LVDS) {
+		printk("I did!\r\n");
 		ret = adrv9002_profile_load(phy, "Navassa_LVDS_profile.json");
 		if (ret)
 			return ret;
+	} else {
+		printk("I didn't.\r\n");
 	}
 
 	ret = adrv9002_init(phy, &phy->profile);
@@ -4705,6 +4709,7 @@ static int adrv9002_probe(struct spi_device *spi)
 	phy->hal.spi = spi;
 	phy->adrv9001->common.devHalInfo = &phy->hal;
 
+	printk("\r\nI am calling profile_load(cmos) because I am in probe()...\r\n\r\n")
 	ret = adrv9002_profile_load(phy, "Navassa_CMOS_profile.json");
 	if (ret)
 		return ret;

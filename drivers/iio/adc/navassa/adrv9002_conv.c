@@ -358,7 +358,7 @@ static int adrv9002_axi_pn_check(const struct axiadc_converter *conv, const int 
 	/* reset result */
 	for (chan = 0; chan < n_chan; chan++)
 		printk("\r\nwriting value %d to chan #%d", ADI_PN_ERR | ADI_PN_OOS, chan);
-		printk("the register address is %X. ADI_PN_ERR is %d. ADI_PN_OOS is %d.\r\n", AIM_AXI_REG(off, ADI_REG_CHAN_STATUS(chan)), ADI_PN_ERR, ADI_PN_OOS);
+		printk("the register address is %X: off:%X + addr:%X. ADI_PN_ERR is %d. ADI_PN_OOS is %d.\r\n", AIM_AXI_REG(off, ADI_REG_CHAN_STATUS(chan)), off, ADI_REG_CHAN_STATUS(chan), ADI_PN_ERR, ADI_PN_OOS);
 		axiadc_write(st, AIM_AXI_REG(off, ADI_REG_CHAN_STATUS(chan)),
 			     ADI_PN_ERR | ADI_PN_OOS);
 
