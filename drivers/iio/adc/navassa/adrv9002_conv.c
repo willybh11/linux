@@ -488,11 +488,14 @@ int adrv9002_axi_intf_tune(struct adrv9002_rf_phy *phy, const bool tx, const int
 				}
 			}
 			/* check result */
-			if (!tx)
+			printk("\r\n==========\r\nachecking result:\r\n==========\r\n\r\n");
+			if (!tx) {
+				printk("\r\n==========\r\n!tx, calling axi_pn_check()\r\n==========\r\n\r\n");
 				ret = adrv9002_axi_pn_check(conv, off, n_chan);
-			else
+			} else
+				printk("\r\n==========\r\ntx, calling check_tx_test_pattern()\r\n==========\r\n\r\n");
 				ret = adrv9002_check_tx_test_pattern(phy, chann);
-
+			}
 			field[clk][data] |= ret;
 		}
 	}
