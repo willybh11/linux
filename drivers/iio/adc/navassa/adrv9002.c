@@ -2913,6 +2913,8 @@ int adrv9002_check_tx_test_pattern(struct adrv9002_rf_phy *phy, const int chann)
 	struct adi_adrv9001_TxSsiTestModeStatus status = {0};
 	adi_adrv9001_SsiDataFormat_e data_fmt = ADI_ADRV9001_SSI_FORMAT_16_BIT_I_Q_DATA;
 
+	printk("\r\n==========\r\ninside tx_test_pattern()\r\n==========\r\n\r\n");
+
 	cfg.testData = test_data;
 
 	ret = adi_adrv9001_Ssi_Tx_TestMode_Status_Inspect(phy->adrv9001, chan->number,
