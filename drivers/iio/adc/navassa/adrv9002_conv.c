@@ -353,8 +353,11 @@ static int adrv9002_axi_pn_check(const struct axiadc_converter *conv, const int 
 	struct adrv9002_rf_phy *phy = conv->phy;
 	u32 reg;
 
+	printk("\r\nin adrv9002_axi_pn_check\r\n\r\n")
+
 	/* reset result */
 	for (chan = 0; chan < n_chan; chan++)
+		printk("\r\nwriting value %d to chan #%d", ADI_PN_ERR | ADI_PN_OOS, chan);
 		axiadc_write(st, AIM_AXI_REG(off, ADI_REG_CHAN_STATUS(chan)),
 			     ADI_PN_ERR | ADI_PN_OOS);
 
@@ -362,12 +365,18 @@ static int adrv9002_axi_pn_check(const struct axiadc_converter *conv, const int 
 
 	/* check for errors in any channel */
 	for (chan = 0; chan < n_chan; chan++) {
+		printk("\r\nchecking chan #%d\r\n\r\n");
 		reg = axiadc_read(st, AIM_AXI_REG(off, ADI_REG_CHAN_STATUS(chan)));
 		if (reg) {
+			printk("\r\npn error in chan #%d: %d. Returning 1.\r\n\r\n", chan, reg);
 			dev_dbg(&phy->spi->dev, "pn error in c:%d, reg: %02X\n", chan, reg);
 			return 1;
+		} else {
+			printk("\r\nno error in chan #%d\r\n\r\n", chan)
 		}
 	}
+
+	printk("\r\ndone with error checks, returning 0\r\n\r\n");
 
 	return 0;
 }
@@ -509,39 +518,6 @@ int adrv9002_axi_intf_tune(struct adrv9002_rf_phy *phy, const bool tx, const int
 	printk("\r\ndigital tune verbose: \r\n\r\n");
 
 	adrv9002_axi_digital_tune_verbose(phy, field, tx, chann);
-
-	///////////////////////////////////////////////////////////////////
-
-	int i, j;
-	char c;
-	struct adrv9002_chan *ch;
-
-	if (tx)
-		ch = &phy->tx_channels[chann].channel;
-	else
-		ch = &phy->tx_channels[chann].channel;
-
-	pr_info("SAMPL CLK: %lu tuning: %s%d\n",
-	        clk_get_rate(ch->clk), tx ? "TX" : "RX",
-		chann ? 2 : 1);
-	pr_info("  ");
-	for (i = 0; i < 8; i++)
-		pr_cont("%x%s", i, i == 7 ? "" : ":");
-	pr_cont("\n");
-
-	for (i = 0; i < 8; i++) {
-		pr_info("%x:", i);
-		for (j = 0; j < 8; j++) {
-			if (field[i][j])
-			    c = '#';
-			else
-			    c = 'o';
-			pr_cont("%c ", c);
-		}
-		pr_cont("\n");
-	}
-
-	///////////////////////////////////////////////////////////////////
 
 	/* stop test */
 	ret = adrv9002_intf_test_cfg(phy, chann, tx, true);
