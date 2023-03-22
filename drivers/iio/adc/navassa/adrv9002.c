@@ -4229,11 +4229,13 @@ int adrv9002_init(struct adrv9002_rf_phy *phy, struct adi_adrv9001_Init *profile
 		adrv9002_axi_interface_enable(phy, chan->idx, chan->port == ADI_TX, true);
 	}
 
-	ret = adrv9002_intf_tuning(phy);
-	if (ret) {
-		dev_err(&phy->spi->dev, "Interface tuning failed: %d\n", ret);
-		goto error;
-	}
+	printk("\r\n\r\nskipping tuning... returning from adrv9002_init()...\r\n\r\n");
+	// ret = adrv9002_intf_tuning(phy);
+	// if (ret) {
+	// 	dev_err(&phy->spi->dev, "Interface tuning failed: %d\n", ret);
+	// 	goto error;
+	// }
+
 
 	return 0;
 error:

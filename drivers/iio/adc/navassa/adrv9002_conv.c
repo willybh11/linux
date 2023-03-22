@@ -533,7 +533,7 @@ int adrv9002_axi_intf_tune(struct adrv9002_rf_phy *phy, const bool tx, const int
 
 	for (clk = 0; clk < ARRAY_SIZE(field); clk++) {
 		cnt = adrv9002_axi_find_point(&field[clk][0], sizeof(*field), &data);
-		printk("\r\n==========\r\nJust called adrv9002_axi_find_point(), got: %u\r\n==========\r\n\r\n", cnt);
+		printk("\r\n==========\r\nJust called adrv9002_axi_find_point(), got: %d\r\n==========\r\n\r\n", cnt);
 		if (cnt < 0)
 			continue;
 
