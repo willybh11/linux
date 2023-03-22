@@ -53,6 +53,10 @@
 
 #define IS_CMOS(cfg)			((cfg) & (ADI_CMOS_OR_LVDS_N))
 
+// I added:
+#define DEBUG
+//
+
 #define AIM_CHAN(_chan, _mod, _si, _bits, _sign)			\
 	{ .type = IIO_VOLTAGE,						\
 	  .indexed = 1,							\
