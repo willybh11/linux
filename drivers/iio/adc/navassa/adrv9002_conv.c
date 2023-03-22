@@ -353,7 +353,7 @@ static int adrv9002_axi_pn_check(const struct axiadc_converter *conv, const int 
 	struct adrv9002_rf_phy *phy = conv->phy;
 	u32 reg;
 
-	printk("\r\nin adrv9002_axi_pn_check\r\n\r\n")
+	printk("\r\nin adrv9002_axi_pn_check\r\n\r\n");
 
 	/* reset result */
 	for (chan = 0; chan < n_chan; chan++)
@@ -372,7 +372,7 @@ static int adrv9002_axi_pn_check(const struct axiadc_converter *conv, const int 
 			dev_dbg(&phy->spi->dev, "pn error in c:%d, reg: %02X\n", chan, reg);
 			return 1;
 		} else {
-			printk("\r\nno error in chan #%d\r\n\r\n", chan)
+			printk("\r\nno error in chan #%d\r\n\r\n", chan);
 		}
 	}
 
