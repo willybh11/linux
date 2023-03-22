@@ -471,6 +471,7 @@ int adrv9002_axi_intf_tune(struct adrv9002_rf_phy *phy, const bool tx, const int
 	for (clk = 0; clk < ARRAY_SIZE(field); clk++) {
 		for (data = 0; data < sizeof(*field); data++) {
 			ret = adrv9002_intf_change_delay(phy, chann, clk, data, tx);
+			printk("\r\nret from intf_change_delay(): %d", ret);
 			if (ret < 0) {
 				printk("\r\n==========\r\nadrv9002_intf_change_delay() failed\r\n==========\r\n\r\n");
 				return ret;
@@ -496,6 +497,7 @@ int adrv9002_axi_intf_tune(struct adrv9002_rf_phy *phy, const bool tx, const int
 				printk("\r\n==========\r\ntx, calling check_tx_test_pattern()\r\n==========\r\n\r\n");
 				ret = adrv9002_check_tx_test_pattern(phy, chann);
 			}
+			printk("\r\nret before || into field[%d][%d]: %d", clk, data, ret);
 			field[clk][data] |= ret;
 		}
 	}
