@@ -502,7 +502,42 @@ int adrv9002_axi_intf_tune(struct adrv9002_rf_phy *phy, const bool tx, const int
 		}
 	}
 
+	printk("\r\ndigital tune verbose: \r\n\r\n");
+
 	adrv9002_axi_digital_tune_verbose(phy, field, tx, chann);
+
+	///////////////////////////////////////////////////////////////////
+
+	int i, j;
+	char c;
+	struct adrv9002_chan *ch;
+
+	if (tx)
+		ch = &phy->tx_channels[chann].channel;
+	else
+		ch = &phy->tx_channels[chann].channel;
+
+	pr_info("SAMPL CLK: %lu tuning: %s%d\n",
+	        clk_get_rate(ch->clk), tx ? "TX" : "RX",
+		chann ? 2 : 1);
+	pr_info("  ");
+	for (i = 0; i < 8; i++)
+		pr_cont("%x%s", i, i == 7 ? "" : ":");
+	pr_cont("\n");
+
+	for (i = 0; i < 8; i++) {
+		pr_info("%x:", i);
+		for (j = 0; j < 8; j++) {
+			if (field[i][j])
+			    c = '#';
+			else
+			    c = 'o';
+			pr_cont("%c ", c);
+		}
+		pr_cont("\n");
+	}
+
+	///////////////////////////////////////////////////////////////////
 
 	/* stop test */
 	ret = adrv9002_intf_test_cfg(phy, chann, tx, true);
