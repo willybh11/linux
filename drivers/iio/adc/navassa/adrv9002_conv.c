@@ -526,7 +526,7 @@ int adrv9002_axi_intf_tune(struct adrv9002_rf_phy *phy, const bool tx, const int
 		}
 	}
 
-	printk("\r\n==========\r\nreturned at end of _tune()\r\n==========\r\n\r\n");
+	printk("\r\n==========\r\nreturned at end of _tune() function\r\n==========\r\n\r\n");
 	return max_cnt ? 0 : -EIO;
 }
 
