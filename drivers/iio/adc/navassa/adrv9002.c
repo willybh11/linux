@@ -3053,7 +3053,7 @@ static int adrv9002_intf_tuning(struct adrv9002_rf_phy *phy)
 	for (i = 0; i < ARRAY_SIZE(phy->channels); i++) {
 		struct adrv9002_chan *c = phy->channels[i];
 
-		pritnk("\r\nin for loop -- i = %d, i < %d, i++", i, ARRAY_SIZE(phy->channels));
+		printk("\r\nin for loop -- i = %d, i < %d, i++", i, ARRAY_SIZE(phy->channels));
 
 		if (!c->enabled) {
 			printk("\r\n!c->enabled is true, continuing\r\n\r\n");
