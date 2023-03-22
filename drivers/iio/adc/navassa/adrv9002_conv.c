@@ -366,7 +366,7 @@ static int adrv9002_axi_pn_check(const struct axiadc_converter *conv, const int 
 
 	/* check for errors in any channel */
 	for (chan = 0; chan < n_chan; chan++) {
-		printk("\r\nchecking chan #%d\r\n\r\n");
+		printk("\r\nchecking chan #%d\r\n\r\n", chan);
 		reg = axiadc_read(st, AIM_AXI_REG(off, ADI_REG_CHAN_STATUS(chan)));
 		if (reg) {
 			printk("\r\npn error in chan #%d: %d. Returning 1.\r\n\r\n", chan, reg);
