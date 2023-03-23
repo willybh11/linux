@@ -93,6 +93,9 @@ int32_t adi_adrv9001_cals_InitCals_Run(adi_adrv9001_Device_t *adrv9001,
 
 #if ADI_ADRV9001_PRE_MCS_BROADCAST_DISABLE > 0
     printk("\r\n<><><>\r\nADI_ADRV9001_PRE_MCS_BROADCAST_DISABLE > 0 (again)\r\n<><><>\r\n\r\n");
+
+    // this fails
+    printk("Calling cmdStatus_Wait with opcode ADRV9001_ARM_RUNINIT_OPCODE: %d\r\n\r\n", ADRV9001_ARM_RUNINIT_OPCODE);
     recoveryAction = adi_adrv9001_arm_CmdStatus_Wait(adrv9001,
                                                      ADRV9001_ARM_RUNINIT_OPCODE,
                                                      &cmdStatusByte,
