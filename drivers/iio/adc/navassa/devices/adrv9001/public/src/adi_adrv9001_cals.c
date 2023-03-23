@@ -45,6 +45,7 @@ int32_t adi_adrv9001_cals_InitCals_Run(adi_adrv9001_Device_t *adrv9001,
     uint8_t errFlag = 0;
 
 #if ADI_ADRV9001_PRE_MCS_BROADCAST_DISABLE > 0
+    printk("\r\n<><><>\r\nADI_ADRV9001_PRE_MCS_BROADCAST_DISABLE > 0\r\n<><><>\r\n\r\n");
     static const uint16_t TIMEOUT_MS_FACTOR = 1000;
 #endif
     static const uint32_t ADRV9001_RX1_TX1  = 0; /*!< Rx1/Tx1 channels */
@@ -91,6 +92,7 @@ int32_t adi_adrv9001_cals_InitCals_Run(adi_adrv9001_Device_t *adrv9001,
     ADI_EXPECT(adi_adrv9001_arm_Cmd_Write, adrv9001, ADRV9001_ARM_RUNINIT_OPCODE, &payload[0], ADI_ARRAY_LEN(payload));
 
 #if ADI_ADRV9001_PRE_MCS_BROADCAST_DISABLE > 0
+    printk("\r\n<><><>\r\nADI_ADRV9001_PRE_MCS_BROADCAST_DISABLE > 0 (again)\r\n<><><>\r\n\r\n");
     recoveryAction = adi_adrv9001_arm_CmdStatus_Wait(adrv9001,
                                                      ADRV9001_ARM_RUNINIT_OPCODE,
                                                      &cmdStatusByte,
@@ -112,12 +114,14 @@ int32_t adi_adrv9001_cals_InitCals_Run(adi_adrv9001_Device_t *adrv9001,
     }
 
     /* ARM error handler to provide valid recovery action based on ARM error code */
+    printk("\r\n<><><>\r\nAbout to throw cal error:\r\n<><><>\r\n\r\n");
     if (errFlag > 0)
     {
         ADI_EXPECT(adrv9001_ArmCmdErrorHandler,
                    adrv9001,
                    ADRV9001_ARMCMD_ERRCODE(ADRV9001_ARM_RUNINIT_OPCODE, 0, cmdStatusByte));
     }
+    printk("\r\n<><><>\r\nContinuing...\r\n<><><>\r\n\r\n");
 
     adrv9001->devStateInfo.devState = (adi_adrv9001_ApiStates_e)(adrv9001->devStateInfo.devState | ADI_ADRV9001_STATE_INITCALS_RUN);
 
