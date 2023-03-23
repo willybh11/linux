@@ -2847,7 +2847,7 @@ static int adrv9002_setup(struct adrv9002_rf_phy *phy)
 			return adrv9002_dev_err(phy);
 	}
 
-		printk("\r\n((((((((((((((((((((())))))))))))))))))))) calling initCals_Run ((((((((((((((((((((()))))))))))))))))))))\r\n\r\n")
+		printk("\r\n((((((((((((((((((((())))))))))))))))))))) calling initCals_Run ((((((((((((((((((((()))))))))))))))))))))\r\n\r\n");
 
 	ret = adi_adrv9001_cals_InitCals_Run(adrv9001_device, &phy->init_cals,
 					     60000, &init_cals_error);
