@@ -2802,6 +2802,8 @@ static int adrv9002_setup(struct adrv9002_rf_phy *phy)
 	int ret;
 	adi_adrv9001_ChannelState_e init_state;
 
+	printk("\r\n((((((((((((((((((((())))))))))))))))))))) in setup ((((((((((((((((((((()))))))))))))))))))))\r\n\r\n")
+
 	/* in TDD we cannot start with all ports enabled as RX/TX cannot be on at the same time */
 	if (phy->curr_profile->sysConfig.duplexMode == ADI_ADRV9001_TDD_MODE)
 		init_state = ADI_ADRV9001_CHANNEL_PRIMED;
@@ -2844,6 +2846,8 @@ static int adrv9002_setup(struct adrv9002_rf_phy *phy)
 		if (ret)
 			return adrv9002_dev_err(phy);
 	}
+
+		printk("\r\n((((((((((((((((((((())))))))))))))))))))) calling initCals_Run ((((((((((((((((((((()))))))))))))))))))))\r\n\r\n")
 
 	ret = adi_adrv9001_cals_InitCals_Run(adrv9001_device, &phy->init_cals,
 					     60000, &init_cals_error);
