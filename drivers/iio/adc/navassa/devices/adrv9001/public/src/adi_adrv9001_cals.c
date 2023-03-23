@@ -68,7 +68,7 @@ int32_t adi_adrv9001_cals_InitCals_Run(adi_adrv9001_Device_t *adrv9001,
     payloadMailbox[6] = (uint8_t)(initCals->chanInitCalMask[ADRV9001_RX1_TX1] >> 16);
     payloadMailbox[7] = (uint8_t)(initCals->chanInitCalMask[ADRV9001_RX1_TX1] >> 24);
 
-    printk("\r\n((((((((((((((((((((())))))))))))))))))))) initCals->sysInitCalMask[ADRV9001_RX1_TX1] = %X ((((((((((((((((((((()))))))))))))))))))))\r\n\r\n", initCals->sysInitCalMask[ADRV9001_RX1_TX1]);
+    printk("\r\n((((((((((((((((((((())))))))))))))))))))) initCals->sysInitCalMask[ADRV9001_RX1_TX1] = %X ((((((((((((((((((((()))))))))))))))))))))\r\n\r\n", (uint8_t)(initCals->chanInitCalMask[ADRV9001_RX1_TX1]));
 
 
     /* Bit mask info for Rx2 and Tx2 channels */
@@ -77,7 +77,7 @@ int32_t adi_adrv9001_cals_InitCals_Run(adi_adrv9001_Device_t *adrv9001,
     payloadMailbox[10] = (uint8_t)(initCals->chanInitCalMask[ADRV9001_RX2_TX2] >> 16);
     payloadMailbox[11] = (uint8_t)(initCals->chanInitCalMask[ADRV9001_RX2_TX2] >> 24);
 
-    printk("\r\n((((((((((((((((((((())))))))))))))))))))) initCals->sysInitCalMask[ADRV9001_RX2_TX2] = %X ((((((((((((((((((((()))))))))))))))))))))\r\n\r\n", initCals->sysInitCalMask[ADRV9001_RX2_TX2]);
+    printk("\r\n((((((((((((((((((((())))))))))))))))))))) initCals->sysInitCalMask[ADRV9001_RX2_TX2] = %X ((((((((((((((((((((()))))))))))))))))))))\r\n\r\n", (uint8_t)(initCals->chanInitCalMask[ADRV9001_RX2_TX2]));
 
 
     ADI_MSG_EXPECT("Failed to write ARM mem",
