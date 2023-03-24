@@ -62,11 +62,11 @@ int32_t adi_adrv9001_cals_InitCals_Run(adi_adrv9001_Device_t *adrv9001,
 
     // printk("\r\n((((((((((((((((((((())))))))))))))))))))) initCals->sysInitCalMask = %X ((((((((((((((((((((()))))))))))))))))))))\r\n\r\n", (uint32_t)(initCals->sysInitCalMask));
 
-    // /* Bit mask info for Rx1 and Tx1 channels */
-    // payloadMailbox[4] = (uint8_t)(initCals->chanInitCalMask[ADRV9001_RX1_TX1]);
-    // payloadMailbox[5] = (uint8_t)(initCals->chanInitCalMask[ADRV9001_RX1_TX1] >> 8);
-    // payloadMailbox[6] = (uint8_t)(initCals->chanInitCalMask[ADRV9001_RX1_TX1] >> 16);
-    // payloadMailbox[7] = (uint8_t)(initCals->chanInitCalMask[ADRV9001_RX1_TX1] >> 24);
+    /* Bit mask info for Rx1 and Tx1 channels */
+    payloadMailbox[4] = (uint8_t)(initCals->chanInitCalMask[ADRV9001_RX1_TX1]);
+    payloadMailbox[5] = (uint8_t)(initCals->chanInitCalMask[ADRV9001_RX1_TX1] >> 8);
+    payloadMailbox[6] = (uint8_t)(initCals->chanInitCalMask[ADRV9001_RX1_TX1] >> 16);
+    payloadMailbox[7] = (uint8_t)(initCals->chanInitCalMask[ADRV9001_RX1_TX1] >> 24);
 
     // // printk("\r\n((((((((((((((((((((())))))))))))))))))))) initCals->sysInitCalMask[ADRV9001_RX1_TX1] = %X ((((((((((((((((((((()))))))))))))))))))))\r\n\r\n", (uint32_t)(initCals->chanInitCalMask[ADRV9001_RX1_TX1]));
 
