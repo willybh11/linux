@@ -55,12 +55,12 @@ int32_t adi_adrv9001_cals_InitCals_Run(adi_adrv9001_Device_t *adrv9001,
     ADI_NULL_PTR_RETURN(&adrv9001->common, errorFlag);
 
     /* Bit mask info for non-channel related Init calibrations */
-    // payloadMailbox[0] = (uint8_t)(initCals->sysInitCalMask);
-    // payloadMailbox[1] = (uint8_t)(initCals->sysInitCalMask >> 8);
-    // payloadMailbox[2] = (uint8_t)(initCals->sysInitCalMask >> 16);
-    // payloadMailbox[3] = (uint8_t)(initCals->sysInitCalMask >> 24);
+    payloadMailbox[0] = (uint8_t)(initCals->sysInitCalMask);
+    payloadMailbox[1] = (uint8_t)(initCals->sysInitCalMask >> 8);
+    payloadMailbox[2] = (uint8_t)(initCals->sysInitCalMask >> 16);
+    payloadMailbox[3] = (uint8_t)(initCals->sysInitCalMask >> 24);
 
-    // // printk("\r\n((((((((((((((((((((())))))))))))))))))))) initCals->sysInitCalMask = %X ((((((((((((((((((((()))))))))))))))))))))\r\n\r\n", (uint32_t)(initCals->sysInitCalMask));
+    // printk("\r\n((((((((((((((((((((())))))))))))))))))))) initCals->sysInitCalMask = %X ((((((((((((((((((((()))))))))))))))))))))\r\n\r\n", (uint32_t)(initCals->sysInitCalMask));
 
     // /* Bit mask info for Rx1 and Tx1 channels */
     // payloadMailbox[4] = (uint8_t)(initCals->chanInitCalMask[ADRV9001_RX1_TX1]);
