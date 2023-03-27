@@ -635,7 +635,7 @@ int32_t adi_adrv9001_arm_CmdStatus_Wait(adi_adrv9001_Device_t *device,
     static const uint8_t ARM_ERR_MASK = 0x0E;
     static const uint8_t ARM_PENDING = 0x01;
 
-    printk("\r\n((((((((((((((((((((())))))))))))))))))))) I am being run with opcode: %d ((((((((((((((((((((()))))))))))))))))))))\r\n\r\n", opCode);
+    // printk("\r\n((((((((((((((((((((())))))))))))))))))))) I am being run with opcode: %d ((((((((((((((((((((()))))))))))))))))))))\r\n\r\n", opCode);
 
     ADI_ENTRY_PTR_EXPECT(device, cmdStatusByte);
 
