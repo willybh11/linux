@@ -63,11 +63,13 @@ int32_t adi_adrv9001_cals_InitCals_Run(adi_adrv9001_Device_t *adrv9001,
     // printk("\r\n((((((((((((((((((((())))))))))))))))))))) initCals->sysInitCalMask = %X ((((((((((((((((((((()))))))))))))))))))))\r\n\r\n", (uint32_t)(initCals->sysInitCalMask));
 
     /* Bit mask info for Rx1 and Tx1 channels */
-    payloadMailbox[4] = (uint8_t)(initCals->chanInitCalMask[ADRV9001_RX1_TX1]) | 0xC0;  // Failed on 0x01, failed on 0x02, failed on 0x04
+    payloadMailbox[4] = (uint8_t)(initCals->chanInitCalMask[ADRV9001_RX1_TX1]);// | 0xC0;  // Failed on 0x01, failed on 0x02, failed on 0x04
                                                                                         // passed on 0x08
                                                                                         // failed on 0x30 -- try 0x10 and 0x20
+                                                                                        // failed on C0
+                                                                                        // THESE CAN FAIL AND IIO STILL WORKS. YOU MIGHT NEED TO GO BACK AND DO THE OTHER BYTES AGAIN (not this byte, it's fine)
 
-    // payloadMailbox[5] = (uint8_t)(initCals->chanInitCalMask[ADRV9001_RX1_TX1] >> 8) | 0xF0; // errors with both 0x0F and 0xF0 masked
+    payloadMailbox[5] = (uint8_t)(initCals->chanInitCalMask[ADRV9001_RX1_TX1] >> 8);// | 0xF0; // errors with both 0x0F and 0xF0 masked
     payloadMailbox[6] = (uint8_t)(initCals->chanInitCalMask[ADRV9001_RX1_TX1] >> 16); //no errors
     payloadMailbox[7] = (uint8_t)(initCals->chanInitCalMask[ADRV9001_RX1_TX1] >> 24); //no errors
 
@@ -75,7 +77,7 @@ int32_t adi_adrv9001_cals_InitCals_Run(adi_adrv9001_Device_t *adrv9001,
 
 
     /* Bit mask info for Rx2 and Tx2 channels */
-    payloadMailbox[8]  = (uint8_t)(initCals->chanInitCalMask[ADRV9001_RX2_TX2]) | 0xC0; // all rx2tx2 set to mirror rx1tx1
+    // payloadMailbox[8]  = (uint8_t)(initCals->chanInitCalMask[ADRV9001_RX2_TX2]) | 0xC0; // all rx2tx2 set to mirror rx1tx1
     // payloadMailbox[9]  = (uint8_t)(initCals->chanInitCalMask[ADRV9001_RX2_TX2] >> 8) | 0xF0; 
     payloadMailbox[10] = (uint8_t)(initCals->chanInitCalMask[ADRV9001_RX2_TX2] >> 16); 
     payloadMailbox[11] = (uint8_t)(initCals->chanInitCalMask[ADRV9001_RX2_TX2] >> 24);
