@@ -77,12 +77,12 @@ int32_t adi_adrv9001_cals_InitCals_Run(adi_adrv9001_Device_t *adrv9001,
 
 
     /* Bit mask info for Rx2 and Tx2 channels */
-    payloadMailbox[8]  = (uint8_t)(initCals->chanInitCalMask[ADRV9001_RX2_TX2]) | 0x20;
+    payloadMailbox[8]  = (uint8_t)(initCals->chanInitCalMask[ADRV9001_RX2_TX2]) | 0x40;
         // failed on 0x01
         // failed on 0x02 
         // failed on 0x04 
         // failed on 0x08
-        // 0x10
+        // failed on 0x10
         // 0x20
         // 0x40
         // 0x80
