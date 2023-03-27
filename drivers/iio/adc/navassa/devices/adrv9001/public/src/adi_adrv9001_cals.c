@@ -90,7 +90,7 @@ int32_t adi_adrv9001_cals_InitCals_Run(adi_adrv9001_Device_t *adrv9001,
         // failed on 0x02
         // failed on 0x04
         // failed on 0x08 
-        // failed on 0xF0
+        // failed on 0xF0 
         // passed on 0x10
         // failed on 0x20
         // failed on 0x40
