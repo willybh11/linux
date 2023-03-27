@@ -85,14 +85,17 @@ int32_t adi_adrv9001_cals_InitCals_Run(adi_adrv9001_Device_t *adrv9001,
         //          failed on 0x30, try 0x10 and 0x20
 
 
-    payloadMailbox[9]  = (uint8_t)(initCals->chanInitCalMask[ADRV9001_RX2_TX2] >> 8) | 0x08;  
-        // failed on 0xFF
-        // failed on 0x0F
+    payloadMailbox[9]  = (uint8_t)(initCals->chanInitCalMask[ADRV9001_RX2_TX2] >> 8) | 0x10;  
         // passed on 0x01
         // failed on 0x02
         // failed on 0x04
-        // 0x08
+        // failed on 0x08
         // failed on 0xF0
+            // failed on 0x30
+                // try 0x10 and 0x20
+            // failed on 0xC0
+                // try 0x40 and 0x80
+        // 0x10
         
     payloadMailbox[10] = (uint8_t)(initCals->chanInitCalMask[ADRV9001_RX2_TX2] >> 16); 
     payloadMailbox[11] = (uint8_t)(initCals->chanInitCalMask[ADRV9001_RX2_TX2] >> 24);
