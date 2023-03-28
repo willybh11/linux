@@ -1407,6 +1407,6 @@ void adrv9002_debugfs_create(struct adrv9002_rf_phy *phy, struct dentry *d)
 					   &adrv9002_rx_near_end_loopback_set_fops);
 	}
 
-	adrv9002_debugfs_fh_config_create(phy, d);
+	// adrv9002_debugfs_fh_config_create(phy, d);
 	adrv9002_debugfs_gpio_config_create(phy, d);
 }
