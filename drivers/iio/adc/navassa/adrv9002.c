@@ -125,7 +125,7 @@
 #define ADRV9002_GP_MASK_CORE_ARM_ERROR			0x00000001
 
 // I added:
-#define DEBUG
+// #define DEBUG
 //
 
 #define ADRV9002_IRQ_MASK					\
