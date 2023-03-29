@@ -54,6 +54,8 @@ int32_t adi_adrv9001_cals_InitCals_Run(adi_adrv9001_Device_t *adrv9001,
     ADI_ENTRY_PTR_EXPECT(adrv9001, initCals);
     ADI_NULL_PTR_RETURN(&adrv9001->common, errorFlag);
 
+    printk("\r\n&&&&&&&&&&&&&&&&\r\n test addition to patch! \r\n&&&&&&&&&&&&&&&&\r\n\r\n");
+
     printk("\r\n************************************\r\nsysInitCalMask = 0x%08X \r\n************************************\r\n\r\n", (uint32_t)initCals->chanInitCalMask[ADRV9001_RX1_TX1]);
     // note: CAN FAIL WITH LSB AND 2LSB DISABLED IN BOTH RX1TX1 AND RX2TX2. THIS CHANGES EVERYTHING
 
